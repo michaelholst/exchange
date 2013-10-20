@@ -52,7 +52,7 @@ public class Application extends Controller {
                                         ExchangeRateParser parser = new ExchangeRateParser();
                                         List<ExchangeRate> rates = parser.parseRates(response.getBodyAsStream(), currency);
                                         CassandraClient db = new CassandraClient();
-                                        return db.write(rates);
+                                        return db.write(currency, rates);
                                     }
                                 }
                         ).get();

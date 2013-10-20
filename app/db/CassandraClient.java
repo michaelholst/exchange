@@ -9,10 +9,7 @@ import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 import com.netflix.astyanax.connectionpool.impl.ConnectionPoolConfigurationImpl;
 import com.netflix.astyanax.connectionpool.impl.CountingConnectionPoolMonitor;
 import com.netflix.astyanax.impl.AstyanaxConfigurationImpl;
-import com.netflix.astyanax.model.ColumnFamily;
-import com.netflix.astyanax.model.ColumnList;
-import com.netflix.astyanax.model.Row;
-import com.netflix.astyanax.model.Rows;
+import com.netflix.astyanax.model.*;
 import com.netflix.astyanax.serializers.StringSerializer;
 import com.netflix.astyanax.thrift.ThriftFamilyFactory;
 import model.ExchangeRate;
@@ -84,7 +81,7 @@ public class CassandraClient {
         return rates;
     }
 
-    public boolean write(List<ExchangeRate> rates) {
+    public boolean write(String currency, List<ExchangeRate> rates) {
         boolean success = true;
         AstyanaxContext<Keyspace> context = getContext();
 
@@ -92,20 +89,32 @@ public class CassandraClient {
 
         Keyspace keyspace = context.getEntity();
 
-        MutationBatch m = keyspace.prepareMutationBatch();
-
-        int i = 1;
-        for (ExchangeRate rate : rates)  {
-            m.withRow(CF_EXCHANGE_RATE, rate.getCurrency() + Integer.toString(i))
-                    .putColumn("date", rate.getDate(), null)
-                    .putColumn("currency", rate.getCurrency(), null)
-                    .putColumn("rate", rate.getRate(), null);
-
-            i++;
-        }
-
         try {
+            OperationResult<CqlResult<String, String>> resultCount = keyspace.prepareQuery(CF_EXCHANGE_RATE)
+                    .withCql("SELECT count(*) FROM exchangerate where currency='" + currency + "';")
+                    .execute();
+
+            long count = resultCount.getResult().getRows().getRowByIndex(0).getColumns().getColumnByName("count").getLongValue();
+            Logger.debug("Count: " +  count);
+
+            MutationBatch m = keyspace.prepareMutationBatch();
+            for (int i = 1; i <= count; i++) {
+                m.withRow(CF_EXCHANGE_RATE, currency + Integer.toString(i)).delete();
+            }
             OperationResult<Void> result = m.execute();
+
+            m = keyspace.prepareMutationBatch();
+            int i = 1;
+            for (ExchangeRate rate : rates)  {
+                m.withRow(CF_EXCHANGE_RATE, rate.getCurrency() + Integer.toString(i))
+                        .putColumn("date", rate.getDate(), null)
+                        .putColumn("currency", rate.getCurrency(), null)
+                        .putColumn("rate", rate.getRate(), null);
+
+                i++;
+            }
+
+            result = m.execute();
         } catch (ConnectionException e) {
             Logger.error("Error writing rates to Cassandra", e);
             success = false;
