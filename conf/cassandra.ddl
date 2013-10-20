@@ -2,6 +2,6 @@ CREATE KEYSPACE exchangerate with strategy_class =  SimpleStrategy and strategy_
 
 USE exchangerate;
 
-CREATE TABLE exchangerate (hash varchar PRIMARY KEY, date varchar, currency varchar, rate double);
+CREATE TABLE exchangerate (id varchar PRIMARY KEY, date varchar, currency varchar, rate double);
 
 CREATE INDEX ON exchangerate (currency);

@@ -1,13 +1,19 @@
 package controllers;
 
+import db.CassandraClient;
+import model.ExchangeRate;
 import org.codehaus.jackson.node.ObjectNode;
 import play.*;
 import play.libs.F;
 import play.libs.Json;
+import play.libs.WS;
 import play.mvc.*;
 
 import views.html.*;
+import xml.ExchangeRateParser;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 public class Application extends Controller {
@@ -16,26 +22,55 @@ public class Application extends Controller {
         return ok(index.render());
     }
 
-    public static Result json() {
-        F.Promise<String> promiseOfString = play.libs.Akka.future(
-                new Callable<String>() {
-                    public String call() {
-                        return "OK";
+    public static Result exchangeRates(final String currency) {
+        F.Promise<List<ExchangeRate>> promiseOfList = play.libs.Akka.future(
+                new Callable<List<ExchangeRate>>() {
+                    public List<ExchangeRate> call() {
+                        CassandraClient db = new CassandraClient();
+                        return db.read(currency);
                     }
                 }
         );
         return async(
-                promiseOfString.map(
-                        new F.Function<String, Result>() {
-                            public Result apply(String s) {
-                                ObjectNode result = Json.newObject();
-                                result.put("test", "OK");
-
-                                return ok(result);
+                promiseOfList.map(
+                        new F.Function<List<ExchangeRate>, Result>() {
+                            public Result apply(List<ExchangeRate> list) {
+                                return ok(Json.toJson(list));
                             }
                         }
                 )
         );
     }
 
+    public static Result refresh(final String currency) {
+        F.Promise<Boolean> promiseOfBoolean = play.libs.Akka.future(
+                new Callable<Boolean>() {
+                    public Boolean call() {
+                        return WS.url("http://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml").get().map(
+                                new F.Function<WS.Response, Boolean>() {
+                                    public Boolean apply(WS.Response response) {
+                                        ExchangeRateParser parser = new ExchangeRateParser();
+                                        List<ExchangeRate> rates = parser.parseRates(response.getBodyAsStream(), currency);
+                                        CassandraClient db = new CassandraClient();
+                                        return db.write(rates);
+                                    }
+                                }
+                        ).get();
+                    }
+                }
+        );
+        return async(
+                promiseOfBoolean.map(
+                        new F.Function<Boolean, Result>() {
+                            public Result apply(Boolean success) {
+                                if (success) {
+                                    return ok();
+                                } else {
+                                    return internalServerError();
+                                }
+                            }
+                        }
+                )
+        );
+    }
 }

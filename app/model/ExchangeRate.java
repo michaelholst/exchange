@@ -1,12 +1,13 @@
 package model;
 
-import java.util.Date;
-
-public class ExchangeRate {
+public class ExchangeRate implements Comparable<ExchangeRate>{
 
     private String currency;
     private String date;
     private double rate;
+
+    public ExchangeRate() {
+    }
 
     public ExchangeRate(String date, String currency, double rate) {
         this.date = date;
@@ -36,5 +37,9 @@ public class ExchangeRate {
 
     public void setRate(double rate) {
         this.rate = rate;
+    }
+
+    public int compareTo(ExchangeRate r) {
+        return this.getDate().compareTo(r.getDate());
     }
 }
