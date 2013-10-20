@@ -1,0 +1,28 @@
+@main("Euro Exchange Rates") {
+
+    <h1>Euro Exchange Rates</h1>
+    <p class="lead">Select a foreign currency below to view Euro exchange rate for the past 90 days.</p>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <select id="currency">
+                <option value="volvo">Volvo</option>
+                <option value="saab">Saab</option>
+                <option value="mercedes">Mercedes</option>
+                <option value="audi">Audi</option>
+            </select>
+            <button id="refreshCurrent" type="button" class="btn btn-default btn-xs"><span class="glyphicon glyphicon-euro"></span> Refresh Current</button>
+            <button id="refreshAll" type="button" class="btn btn-default btn-xs"><span class="glyphicon glyphicon-refresh"></span> Refresh All</button>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h3 class="panel-title">Exchange Rates for the Last 90 Days</h3>
+        </div>
+        <div id="barChart" class="panel-body">
+
+        </div>
+    </div>
+    
+}
