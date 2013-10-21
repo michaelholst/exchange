@@ -19,6 +19,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Astyanax client for Cassandra
+ */
 public class CassandraClient {
 
     static final ColumnFamily<String, String> CF_EXCHANGE_RATE =
@@ -27,6 +30,10 @@ public class CassandraClient {
                     StringSerializer.get(),   // Key Serializer
                     StringSerializer.get());  // Column Serializer
 
+    /**
+     * Context initialization for read and write
+     * @return Initialized context
+     */
     private AstyanaxContext<Keyspace> getContext() {
         AstyanaxContext<Keyspace> context = new AstyanaxContext.Builder()
                 .forCluster("Test Cluster")
@@ -45,6 +52,11 @@ public class CassandraClient {
         return context;
     }
 
+    /**
+     * Read the DB for currency rows
+     * @param currency Currency filter
+     * @return ExchangeRate list of elements in DB
+     */
     public List<ExchangeRate> read(String currency) {
         List<ExchangeRate> rates = new ArrayList<ExchangeRate>();
 
@@ -81,6 +93,12 @@ public class CassandraClient {
         return rates;
     }
 
+    /**
+     * Write to the DB rates (coming from feed)
+     * @param currency Currency filter (also in each rate, must match)
+     * @param rates List of ExchangeRate ites
+     * @return true if successful, false if not
+     */
     public boolean write(String currency, List<ExchangeRate> rates) {
         boolean success = true;
         AstyanaxContext<Keyspace> context = getContext();
@@ -90,19 +108,23 @@ public class CassandraClient {
         Keyspace keyspace = context.getEntity();
 
         try {
+            // We use a custom generated ID like USD1
+
+            // So, first we have to find out how many items we have in the DB
             OperationResult<CqlResult<String, String>> resultCount = keyspace.prepareQuery(CF_EXCHANGE_RATE)
                     .withCql("SELECT count(*) FROM exchangerate where currency='" + currency + "';")
                     .execute();
 
             long count = resultCount.getResult().getRows().getRowByIndex(0).getColumns().getColumnByName("count").getLongValue();
-            Logger.debug("Count: " +  count);
 
+            // With the count, we delete those values (Cassandra won't allow a delete with a secondary index)
             MutationBatch m = keyspace.prepareMutationBatch();
             for (int i = 1; i <= count; i++) {
                 m.withRow(CF_EXCHANGE_RATE, currency + Integer.toString(i)).delete();
             }
             OperationResult<Void> result = m.execute();
 
+            // Write the new values
             m = keyspace.prepareMutationBatch();
             int i = 1;
             for (ExchangeRate rate : rates)  {

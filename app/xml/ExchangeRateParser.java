@@ -17,8 +17,17 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * Parser for ECB XML Feed
+ * */
 public class ExchangeRateParser {
 
+    /**
+     * Use STaX events to parse the XML feed
+     * @param xml InputStream of XML test
+     * @param currency String of currency to find in the XML
+     * @return List of ExchangeRate items
+     */
     public List<ExchangeRate> parseRates(InputStream xml, String currency) {
         List<ExchangeRate> rates = new ArrayList<ExchangeRate>();
 
@@ -32,16 +41,20 @@ public class ExchangeRateParser {
                 boolean continueParse = true;
                 while (continueParse) {
                     if (event == XMLStreamConstants.START_ELEMENT) {
+                        // Both the date and rates use the Cube element
                         if (r.getLocalName().equals("Cube")) {
                             for(int i = 0, n = r.getAttributeCount(); i < n; ++i) {
+                                // First mark the date
                                 if (r.getAttributeLocalName(i).equals("time")) {
                                     date = r.getAttributeValue(i);
                                 }
 
+                                // Now get the currency
                                 if ((r.getAttributeLocalName(i).equals("currency")) && r.getAttributeValue(i).equals(currency)) {
                                     matchCurrency = true;
                                 }
 
+                                // Finally, get the rate and add to the list
                                 if (r.getAttributeLocalName(i).equals("rate")) {
                                     if (matchCurrency) {
                                         ExchangeRate rate = new ExchangeRate(date, currency, Double.parseDouble(r.getAttributeValue(i)));

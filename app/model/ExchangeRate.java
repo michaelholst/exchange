@@ -1,5 +1,8 @@
 package model;
 
+/**
+ * ExchangeRate model
+ */
 public class ExchangeRate implements Comparable<ExchangeRate>{
 
     private String currency;

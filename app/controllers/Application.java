@@ -22,6 +22,11 @@ public class Application extends Controller {
         return ok(index.render());
     }
 
+    /**
+     * Async DB read of ExchangeRates
+     * @param currency Currency filter
+     * @return JSON response of ExchangeRate items
+     */
     public static Result exchangeRates(final String currency) {
         F.Promise<List<ExchangeRate>> promiseOfList = play.libs.Akka.future(
                 new Callable<List<ExchangeRate>>() {
@@ -42,15 +47,24 @@ public class Application extends Controller {
         );
     }
 
+    /**
+     * Async pull of XML feed
+     * @param currency Currency filter
+     * @return 200 or 500 status codes
+     */
     public static Result refresh(final String currency) {
         F.Promise<Boolean> promiseOfBoolean = play.libs.Akka.future(
                 new Callable<Boolean>() {
                     public Boolean call() {
+                        // Read the XML feed (notice the .get() that may block)
                         return WS.url("http://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml").get().map(
                                 new F.Function<WS.Response, Boolean>() {
                                     public Boolean apply(WS.Response response) {
+                                        // Parse XML
                                         ExchangeRateParser parser = new ExchangeRateParser();
                                         List<ExchangeRate> rates = parser.parseRates(response.getBodyAsStream(), currency);
+
+                                        // Write to DB
                                         CassandraClient db = new CassandraClient();
                                         return db.write(currency, rates);
                                     }
